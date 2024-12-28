@@ -1,0 +1,213 @@
+---
+title: 'How to make your ML/DL actually works in production'
+publishedAt: '2024-12-16'
+summary: 'Short post to explain how to go past the jupyter-notebook.'
+---
+
+This post if made for you if you are an amateur/beginner in Machine-Learning/Deep-learning 
+(Understanding of stochastic gradient descent, MLP, CNN, RNN and LSTM architecture) with not
+much knowledge in the deployment part. <br/>
+You are capable of understanding how to make your model learn patterns on your dataset, how to 
+optimize it by tunning your parameters and hyperparameters. ML is is not a black box for you anymore. <br/>
+But on your file explorer that's still a messy Jupyter notebook. <br/>
+You are not alone, I've been there and I'm here to help you go past that. <br/>
+
+## Exporting your model
+
+First thing first, you need to export your model. You can do it by using :
+- `torch.save` function if you are using Pytorch 
+- `model.save` if you are using Tensorflow
+- `joblib.dump` if you are using scikit-learn
+
+This will save your model in a file that you can load later on. <br/>
+There are many extension you can use to save your model, the most common are: `.pt`, `.pth`, `.h5`, `.joblib`. <br/>
+It really depends on the library you are using. <br/> 
+
+```python
+// Imports for pytorch, tensorflow and scikit-learn to export your model
+import torch
+import tensorflow as tf
+import joblib
+
+// Exporting your model with torch
+/// Exporting the whole model
+torch.save(model, 'model.pth')
+
+/// Exporting only the weight of your model
+torch.save(model.state_dict(), 'model.pt')
+
+// Exporting with tensorflow
+model.save('model.h5')
+
+// Exporting with scikit-learn
+joblib.dump(model, 'model.joblib')
+```
+
+## Creation of the API 
+I am now going to show your the real deal once your model is trained and saved. <br/>
+I'll share with you a use case I had to work on which is predicting if a rookie NBA 
+player is worth investing in or not. <br/> 
+
+Here is the code using Flask and Torch to create an API that will take the input of the user (He will
+enters the stats of the rookie player inside a html form and send a POST request) and will return the 
+template showing the result of the classification <br/>
+
+
+```python
+from flask import Flask, request, jsonify, render_template
+import numpy as np
+import pickle
+
+app = Flask(__name__)
+
+model = pickle.load(open("models/logi_reg.pkl", "rb"))
+
+
+@app.route("/")
+def home():
+    return render_template("index.html")
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=30)
+```
+
+<span style={{
+    textAlign: 'center', 
+    marginX: 'auto', 
+    display: 'block', 
+    fontSize: '0.8rem'}}>
+    Flask application
+</span>
+
+
+Just like a classical python script, you will import the different libraries you need. <br/>
+First step is loading the model with the `pickle` library. <br/>
+You will create a route that will return the html form to the user. 
+Here's the template of the html form: <br/>
+
+```html
+    <h1 class="text-3xl font-bold m-5"> Find your player </h1>
+    <p class="text-m m-5">You may be selectionning rookies for the incomming draft but the day before, you realize you don't know a player. </br> Still you wanna know if he is worth investing in it. Here's the perfect tool for you. </br>This tool will tell you from the statistical values of the player if he will have a carrier > 5 years in NBA. </br>This is a tool to help you out not take the decision for you. Just fill in this little form to see what the model think ! </p>
+    <form action="{{url_for('predict')}}" method="post">
+        <b style="display: flex; flex-direction: row; flex-flow: wrap;">
+            <div class="input"> <span>Name</span> <input class="border-solid border-2 border-grey rounded-md" type="text" name="Name"> </div>
+            <div class="input"> <span> GP </span> <input class="border-solid border-2 border-grey rounded-md" type="number" name="GP" step="1"> </div>
+            <div class="input"> <span> MP </span> <input class="border-solid border-2 border-grey rounded-md" type="number" name="MIN" step="1"> </div>
+            <div class="input"> <span> PTS </span> <input class="border-solid border-2 border-grey rounded-md" type="number" name="PTS" step="0.1"> </div>
+            <div class="input"> <span> FGM </span> <input class="border-solid border-2 border-grey rounded-md" type="number" name="FGM" step="0.1"> </div>
+            <div class="input"> <span> FGA </span> <input class="border-solid border-2 border-grey rounded-md" type="number" name="FGA" step="0.1"> </div>
+            <!-- <div class="input"> <span> FG% </span> <input class="border-solid border-2 border-grey rounded-md" type="number" name="FG%" step="0.1"> </div> -->
+            <div class="input"> <span> 3PM </span> <input class="border-solid border-2 border-grey rounded-md" type="number" name="3P Made" step="0.1"> </div>
+            <div class="input"> <span> 3PA </span> <input class="border-solid border-2 border-grey rounded-md" type="number" name="3PA" step="0.1"> </div>
+            <!-- <div class="input"> <span> 3P% </span> <input class="border-solid border-2 border-grey rounded-md" type="number" name="3P%" step="0.1"> </div> -->
+            <div class="input"> <span> FTM </span> <input class="border-solid border-2 border-grey rounded-md" type="number" name="FTM" step="0.1"> </div>
+            <div class="input"> <span> FTA </span> <input class="border-solid border-2 border-grey rounded-md" type="number" name="FTA" step="0.1"> </div>
+            <!-- <div class="input"> <span> FT% </span> <input class="border-solid border-2 border-grey rounded-md" type="number" name="FT%" step="0.1"> </div> -->
+            <div class="input"> <span> OREB </span> <input class="border-solid border-2 border-grey rounded-md" type="number" name="OREB" step="0.1"> </div>
+            <div class="input"> <span> DREB </span> <input class="border-solid border-2 border-grey rounded-md" type="number" name="DREB" step="0.1"> </div>
+            <div class="input"> <span> REB </span> <input class="border-solid border-2 border-grey rounded-md" type="number" name="REB" step="0.1"> </div>
+            <div class="input"> <span> AST </span> <input class="border-solid border-2 border-grey rounded-md" type="number" name="AST" step="0.1"> </div> 
+            <div class="input"> <span> STL </span> <input class="border-solid border-2 border-grey rounded-md" type="number" name="STL" step="0.1"> </div>
+            <div class="input"> <span> BLK </span> <input class="border-solid border-2 border-grey rounded-md" type="number" name="BLK" step="0.1"> </div>
+            <div class="input"> <span> TOV </span> <input class="border-solid border-2 border-grey rounded-md" type="number" name="TOV" step="0.1"> </div>
+            <br>
+        </b>
+        <input class="px-5 py-1 border-solid border-2 border-grey rounded-md" type="submit" value="predict">
+    </form>
+```
+
+<span style={{
+    textAlign: 'center', 
+    marginX: 'auto', 
+    display: 'block', 
+    fontSize: '0.8rem'}}>
+    html form to enter the stats of the player
+</span>
+
+
+When the user is done filling the form, he will click on the predict button and the data will be sent to the `/predict` route. <br/>
+Which is defined like so : 
+
+
+```python
+@app.route("/predict", methods=["POST"])
+def predict():
+    name = request.form["Name"]
+    gp = float(request.form["GP"])
+    min = float(request.form["MIN"])
+    pts = float(request.form["PTS"])
+    fgm = float(request.form["FGM"])
+    fga = float(request.form["FGA"])
+    fg_ppct = fgm / fga  
+    three_pm = float(request.form["3P Made"])
+    three_pa = float(request.form["3PA"])
+    three_ppct = three_pm / three_pa  
+    ftm = float(request.form["FTM"])
+    fta = float(request.form["FTA"])
+    ft_ppct = ftm / fta 
+    oreb = float(request.form["OREB"])
+    dreb = float(request.form["DREB"])
+    reb = float(request.form["REB"])
+    ast = float(request.form["AST"])
+    stl = float(request.form["STL"])
+    blk = float(request.form["BLK"])
+    tov = float(request.form["TOV"])
+
+
+    arr = np.array(
+        [
+            [
+                gp,
+                min,
+                pts,
+                fgm,
+                fga,
+                fg_ppct,
+                three_pm,
+                three_pa,
+                three_ppct,
+                ftm,
+                fta,
+                ft_ppct,
+                oreb,
+                dreb,
+                reb,
+                ast,
+                stl,
+                blk,
+                tov,
+            ]
+        ]
+    )
+    pred = model.predict(arr)
+    return render_template("after_predict.html", data=pred)
+```
+
+<span style={{
+    textAlign: 'center', 
+    marginX: 'auto', 
+    display: 'block', 
+    fontSize: '0.8rem'}}>
+    Predict route
+</span>
+
+The data from the form is extracted and stored in a numpy array which is supported by the model. <br/>
+The prediction is made and the result is sent to the `after_predict.html` template. <br/>
+
+```html
+    <h1 class="text-3xl m-5 font-bold mx-auto text-center">Prediction :</h1>
+    {%if data == 0%}
+        <h2 class="text-2xl m-5">Shouldn't spend a dollar on this player</h2>
+    {%else%}
+    <h2 class="text-2xl m-5">This player is worth investing in !!</h2>
+    {%endif%}
+    <a href="{{url_for('home')}}" class="text-l m-5 text-blue-400">Back to the form</a>
+```
+<span style={{
+    textAlign: 'center', 
+    marginX: 'auto', 
+    display: 'block', 
+    fontSize: '0.8rem'}}>
+    Result template
+</span>
+

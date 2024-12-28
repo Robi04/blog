@@ -1,0 +1,98 @@
+---
+title: 'Make it RAG WIP'
+publishedAt: '2024-12-15'
+summary: 'We will see what's a RAG and how to make yours.'
+---
+
+Large language models are revolutionizing the field of natural language processing (NLP) 
+by achieving human-level performance on a wide range of tasks. These models can be personalised
+to specific domains or use cases through a process called fine-tuning, this is time consuming
+and requires a lot of data. In this post, we will explore a technique called RAG (Retrieval-Augmented Generation)
+
+## RAG whattttt ? 
+
+RAG stands for Retrieval-Augmented-Generation and is an AI framework for retrieving facts 
+from an external knowledge base to ground large language models (LLMs).
+It was first introduced in the paper "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks".
+
+![Description de l'image](/images/rag.jpg)
+<span style={{
+    textAlign: 'center', 
+    marginX: 'auto', 
+    display: 'block', 
+    fontSize: '0.8rem'}}>
+    Rag representation
+</span>
+
+## What is it made of
+- The Retriever: responsible for finding relevant information in a large corpus of text aka: the knowledge base
+- The Generator is responsible for generating a response based on the retrieved informations
+
+
+## Why should you use it
+When I first started playing with open-sources LLMs , I was amazed so I decided to build my
+own webapp "PokeAI" to chat with it, I just gave it a context to tell him he was a Pokémons 
+expert and was there to help users with their questions about Pokémons BUT.... I quickly 
+realized that the model was not able to provide me with the right answers and was struggling 
+to retreive the number of the pokemon in the national Pokedex, or even give me every 
+evolutions with 100% accuracy. So I decided to fine-tune it using T4 gpu which was really 
+long. And I was only using a 3B model. That's where for most data enthusiats it's a pain to 
+fine-tune a model and it's not always the best solution. That's where RAG comes in, you 
+add a single step before the generation of the answers of your prompts and it will add 
+a lot of value the vanilla LLM.
+
+![Description de l'image](/images/rag-vs-fine-tune.png)
+<span style={{
+    textAlign: 'center', 
+    marginX: 'auto', 
+    display: 'block', 
+    fontSize: '0.8rem'}}>
+    Rag representation
+</span>
+
+## How does it work
+First you will write down a prompt, before encoding then decoding it with your LLM, you will
+use an embeddind model to vectorize your prompt. There are many embedding models like: 
+all-MiniLM-L6-v2, Word2Vec, BERT... and you can choose the one that fits your needs the best. 
+The model you'll use to vectorize your prompt will be the same you'll use to vectorize your
+documents in your knowledge base. Now, the retriever will find the most relevant documents 
+(based on vectors similarity) in your knowledge base and will return the top-k documents 
+with k a parameter you'll define. Once returned you will concatenate the retrieved documents
+with your prompt and that's where the generator will take over and generate the answer by 
+encoding the whole input and and decoding it with the LLM.
+
+![Description de l'image](/images/similarity.jpg)
+<span style={{
+    textAlign: 'center', 
+    marginX: 'auto', 
+    display: 'block', 
+    fontSize: '0.8rem'}}>
+    Rag representation
+</span>
+
+
+## Let's implement it
+First you'll need to install the library ChromaDB which is a simple and efficient way to store 
+your documents. It's using Faiss under the hood to store the vectors of your documents and to 
+retrieve them quickly. Based on sqlite3, it's easy to use and to install.
+
+`pip install chromadb`
+  
+```python
+import chromadb
+chroma_client = chromadb.Client()
+collection = chroma_client.create_collection(name='my_collection')
+collection.add(
+    documents=[
+        "Robin's dog name is Mams",
+        "Charles Leclerc is the greatest F1 pilot",
+        "Price of the milk is 1.5€",
+    ],
+    ids=["id1", "id2", 'id3']
+)
+results = collection.query(
+    query_texts=["Who is Mams?"],
+    n_results=2
+)
+print(results)
+```
